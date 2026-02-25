@@ -40,7 +40,7 @@ for i in range(x):
         mensajes.append(simbolosRestaurante[eleccion])
     else:
         print("Número inválido.")
-        i -= 1  # opcional si quieres repetir intento
+        i -= 1 
 
 H = calcularEntropia(mensajes)
 
