@@ -1,3 +1,6 @@
+# Script para jugar al ahorcado con frecuencias de letras y Markov
+
+# Frecuencias de letras anidadas (probabilidades de la siguiente letra dado la letra actual)
 FRECUENCIAS_ANIDADAS = {
     'a': {'b': 0.025, 'c': 0.045, 'd': 0.06, 'e': 0.19, 'f': 0.02, 'g': 0.025, 'h': 0.02, 'i': 0.105, 'j': 0.012, 'k': 0.001, 'l': 0.085, 'm': 0.035, 'n': 0.08, 'ñ': 0.006, 'o': 0.115, 'p': 0.04, 'q': 0.009, 'r': 0.07, 's': 0.075, 't': 0.055, 'u': 0.085, 'v': 0.025, 'w': 0.001, 'x': 0.004, 'y': 0.018, 'z': 0.01},
     'b': {'a': 0.16, 'c': 0.035, 'd': 0.05, 'e': 0.185, 'f': 0.012, 'g': 0.018, 'h': 0.012, 'i': 0.115, 'j': 0.008, 'k': 0.001, 'l': 0.085, 'm': 0.025, 'n': 0.07, 'ñ': 0.004, 'o': 0.125, 'p': 0.03, 'q': 0.006, 'r': 0.075, 's': 0.065, 't': 0.045, 'u': 0.095, 'v': 0.015, 'w': 0.001, 'x': 0.002, 'y': 0.012, 'z': 0.006},
@@ -28,6 +31,7 @@ FRECUENCIAS_ANIDADAS = {
     'z':  {'a': 0.155, 'b': 0.018, 'c': 0.035, 'd': 0.05, 'e': 0.185, 'f': 0.012, 'g': 0.018, 'h': 0.012, 'i': 0.115, 'j': 0.008, 'k': 0.001, 'l': 0.085, 'm': 0.025, 'n': 0.07, 'ñ': 0.004, 'o': 0.125, 'p': 0.03, 'q': 0.006, 'r': 0.075, 's': 0.065, 't': 0.045, 'u': 0.095, 'v': 0.015, 'w': 0.001, 'x': 0.002, 'y': 0.012}
 }
 
+# Frecuencias generales de letras 
 frecuenciasGenerales = {
     'a': 0.15, 
     'b': 0.02, 
@@ -58,14 +62,100 @@ frecuenciasGenerales = {
     'z': 0.008,
 }
 
+import random
 
-def escogerLetra(letra):
-    frecuenciasGenerales[letra] = 0
-    for otra_letra, nueva_prob in FRECUENCIAS_ANIDADAS[letra].items():
-        frecuenciasGenerales[otra_letra] = nueva_prob
+# Funcion para elegir letra segun frecuencias y letras usadas
+def elegir_letra(freq, usadas):
+    # Filtrar letras disponibles
+    letras = []
+    probs = []
+    for letra in freq:
+        if letra not in usadas and freq[letra] > 0:
+            letras.append(letra)
+            probs.append(freq[ letra ])
+    
+    # Si no quedan letras disponibles, retornar None
+    if len(letras) == 0:
+        return None, 0
+    
+    # Normalizar probabilidades
+    total = 0
+    for p in probs:
+        total = total + p
+    
+    probs_norm = []
+    for p in probs:
+        probs_norm.append(p / total)
+    
+    # Elegir letra aleatoria de acuerdo a los pesos de las probabilidades
+    r = random.random()
+    acum = 0
+    for i in range(len(letras)):
+        acum = acum + probs_norm[i]
+        if r <= acum:
+            return letras[i], probs[i]
+    
+    # En caso de error, retornar la ultima letra
+    return letras[-1], probs[-1]
 
-if __name__ == "__main__":
-    palabra = "gato"
-    for letra in palabra:
-        escogerLetra(letra)
-        print(f"Frecuencias después de escoger '{letra}': {frecuenciasGenerales}")
+# Funcion para actualizar frecuencias 
+def actualizar(letra, freq):
+    # Actualizar frecuencias de acuerdo a la letra descubierta
+    if letra in FRECUENCIAS_ANIDADAS:
+        for k in FRECUENCIAS_ANIDADAS[letra]:
+            freq[k] = FRECUENCIAS_ANIDADAS[letra][k]
+    freq[letra] = 0
+    return freq
+
+# Funcion principal del juego del ahorcado
+def ahorcado(palabra):
+    palabra = palabra.lower()
+    n = len(palabra)
+    
+    # Estado inicial
+    estado = []
+    for i in range(n):
+        estado.append('_')
+    
+    usadas = []
+    fallos = 0
+    freq = frecuenciasGenerales.copy()
+    
+    turno = 1
+    # Ciclo principal del juego
+    while '_' in estado:
+        letra, prob = elegir_letra(freq, usadas)
+        
+        if letra == None:
+            break
+        
+        usadas.append(letra)
+        
+        # Ver si la letra esta en la palabra
+        esta = False
+        for i in range(n):
+            if palabra[i] == letra:
+                estado[i] = letra.upper()
+                esta = True
+        
+        if esta:
+            for i in range(n - 1, -1, -1):
+                if estado[i] != '_':
+                    freq = actualizar(estado[i].lower(), freq)
+                    break
+
+            print("Intento " + str(turno) + ": '" + letra.upper() + "' (P=" + str(round(prob, 3)) + ") \n       -> Intento Acertado \n        " + ' '.join(estado))
+        else:
+            fallos = fallos + 1
+            freq[letra] = 0
+            print("Intento " + str(turno) + ": '" + letra.upper() + "' (P=" + str(round(prob, 3)) + ") \n       -> Intento Fallido \n         " + '  '.join(estado) + "\n        * Fallos: " + str(fallos))
+            
+        
+        turno = turno + 1
+    
+    print("")
+    print("¡PALABRA COMPLETADA!: " + ''.join(estado) + " (En " + str(turno - 1) + " intentos y " + str(fallos) + " fallos) \n")
+
+
+palabra = "GATO"
+ahorcado(palabra)
